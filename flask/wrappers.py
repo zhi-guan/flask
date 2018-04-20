@@ -23,7 +23,7 @@ class JSONMixin(object):
     .. versionadded:: 1.0
     """
 
-    _cached_json = Ellipsis
+    _cached_json = (Ellipsis, Ellipsis)
 
     @property
     def is_json(self):
@@ -50,38 +50,42 @@ class JSONMixin(object):
         return self.get_data(cache=cache)
 
     def get_json(self, force=False, silent=False, cache=True):
-        """Parse and return the data as JSON. If the mimetype does not indicate
-        JSON (:mimetype:`application/json`, see :meth:`is_json`), this returns
-        ``None`` unless ``force`` is true. If parsing fails,
-        :meth:`on_json_loading_failed` is called and its return value is used
-        as the return value.
+        """Parse and return the data as JSON. If the mimetype does not
+        indicate JSON (:mimetype:`application/json`, see
+        :meth:`is_json`), this returns ``None`` unless ``force`` is
+        true. If parsing fails, :meth:`on_json_loading_failed` is called
+        and its return value is used as the return value.
 
         :param force: Ignore the mimetype and always try to parse JSON.
-        :param silent: Silence parsing errors and return ``None`` instead.
-        :param cache: Store the parsed JSON to return for subsequent calls.
+        :param silent: Silence parsing errors and return ``None``
+            instead.
+        :param cache: Store the parsed JSON to return for subsequent
+            calls.
         """
-        if cache and self._cached_json is not Ellipsis:
-            return self._cached_json
+        if cache and self._cached_json[silent] is not Ellipsis:
+            return self._cached_json[silent]
 
         if not (force or self.is_json):
             return None
 
-        # We accept MIME charset against the specification as certain clients
-        # have used this in the past. For responses, we assume that if the
-        # charset is set then the data has been encoded correctly as well.
-        charset = self.mimetype_params.get('charset')
+        data = self._get_data_for_json(cache=cache)
 
         try:
-            data = self._get_data_for_json(cache=cache)
-            rv = json.loads(data, encoding=charset)
+            rv = json.loads(data)
         except ValueError as e:
             if silent:
                 rv = None
+                if cache:
+                    normal_rv, _ = self._cached_json
+                    self._cached_json = (normal_rv, rv)
             else:
                 rv = self.on_json_loading_failed(e)
-
-        if cache:
-            self._cached_json = rv
+                if cache:
+                    _, silent_rv = self._cached_json
+                    self._cached_json = (rv, silent_rv)
+        else:
+            if cache:
+                self._cached_json = (rv, rv)
 
         return rv
 
@@ -187,9 +191,26 @@ class Response(ResponseBase, JSONMixin):
     .. versionchanged:: 1.0
         JSON support is added to the response, like the request. This is useful
         when testing to get the test client response data as JSON.
+
+    .. versionchanged:: 1.0
+
+        Added :attr:`max_cookie_size`.
     """
 
     default_mimetype = 'text/html'
 
     def _get_data_for_json(self, cache):
         return self.get_data()
+
+    @property
+    def max_cookie_size(self):
+        """Read-only view of the :data:`MAX_COOKIE_SIZE` config key.
+
+        See :attr:`~werkzeug.wrappers.BaseResponse.max_cookie_size` in
+        Werkzeug's docs.
+        """
+        if current_app:
+            return current_app.config['MAX_COOKIE_SIZE']
+
+        # return Werkzeug's default when not in an app context
+        return super(Response, self).max_cookie_size

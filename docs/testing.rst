@@ -28,10 +28,7 @@ The Application
 
 First, we need an application to test; we will use the application from
 the :ref:`tutorial`.  If you don't have that application yet, get the
-source code from `the examples`_.
-
-.. _the examples:
-   https://github.com/pallets/flask/tree/master/examples/flaskr/
+source code from :gh:`the examples <examples/tutorial>`.
 
 The Testing Skeleton
 --------------------
@@ -212,12 +209,6 @@ Running that should now give us three passing tests::
 
     ============= 3 passed in 0.23 seconds ==============
 
-For more complex tests with headers and status codes, check out the
-`MiniTwit Example`_ from the sources which contains a larger test
-suite.
-
-.. _MiniTwit Example:
-   https://github.com/pallets/flask/tree/master/examples/minitwit/
 
 Other Testing Tricks
 --------------------
